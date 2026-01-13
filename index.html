@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<title>Fake Slot HTML Only</title>
+<style>
+body { font-family: Arial; text-align: center; background: #f4f4f4; padding: 50px; }
+.grid { display: grid; grid-template-columns: repeat(5, 70px); gap: 5px; justify-content: center; margin-top: 20px; }
+.cell { width: 70px; height: 70px; border: 2px solid #333; font-size: 22px; font-weight: bold; display: flex; align-items: center; justify-content: center; position: relative; background: white; }
+.x { background: gold; }
+.win { background: lightgreen; }
+.subwin { position: absolute; bottom: 2px; right: 3px; font-size: 10px; color: #000; }
+button, select { font-size: 16px; padding: 6px 12px; margin: 6px; }
+</style>
+</head>
+<body>
+
+<h1>🎰 Fake Slot HTML Only</h1>
+
+<p><strong>Balance:</strong> €<span id="balance">1000.00</span></p>
+
+<label><strong>Bet:</strong>
+<select id="bet"></select>
+</label>
+
+<br>
+<button onclick="spin()">SPIN</button>
+<button onclick="resetBalance()">RESET BALANCE</button>
+
+<div class="grid" id="grid"></div>
+<p id="info"></p>
+
+<script>
+const symbols = ['A','B','C','D'];
+const multipliers = ['2X','3X','5X','10X','100X'];
+const balanceKey = 'slotBalance';
+
+// Initialize balance
+let balance = parseFloat(localStorage.getItem(balanceKey)) || 1000;
+document.getElementById('balance').innerText = balance.toFixed(2);
+
+// Generate bet options
+const betSelect = document.getElementById('bet');
+function generateBets() {
+    let bets = [];
+    for(let b=0.1;b<=1.001;b+=0.1) bets.push(b.toFixed(2));
+    for(let b=1.5;b<=5.001;b+=0.5) bets.push(b.toFixed(2));
+    for(let b=6;b<=20;b+=1) bets.push(b.toFixed(2));
+    for(let b=30;b<=100;b+=10) bets.push(b.toFixed(2));
+    bets.forEach(b=>{
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = "€"+b;
+        betSelect.appendChild(opt);
+    });
+}
+generateBets();
+
+// Create 3x5 grid
+function createGrid() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    for(let r=0;r<3;r++){
+        for(let c=0;c<5;c++){
+            const div = document.createElement('div');
+            div.className='cell';
+            grid.appendChild(div);
+        }
+    }
+}
+createGrid();
+
+// Spin logic
+function spin() {
+    const bet = parseFloat(betSelect.value);
+    if(bet>balance){ alert("Ni dovolj denarja"); return; }
+    balance -= bet;
+
+    const gridDivs = Array.from(document.querySelectorAll('.grid .cell'));
+    let grid = [];
+    let multiplier = 1;
+    let clusters = [];
+
+    // Fill grid with random symbols / multipliers
+    for(let r=0;r<3;r++){
+        grid[r]=[];
+        for(let c=0;c<5;c++){
+            let isX = Math.random()<0.05; // 5% chance for multiplier
+            let val = isX ? multipliers[Math.floor(Math.random()*multipliers.length)] : symbols[Math.floor(Math.random()*symbols.length)];
+            grid[r][c]=val;
+
+            const div = gridDivs[r*5+c];
+            div.innerText = val;
+            div.className = 'cell'+(val.includes('X')?' x':'');
+        }
+    }
+
+    // Calculate multiplier
+    for(let r=0;r<3;r++){
+        for(let c=0;c<5;c++){
+            if(grid[r][c].includes('X')){
+                multiplier*=(parseInt(grid[r][c].replace('X','')));
+            }
+        }
+    }
+    multiplier = Math.min(multiplier,100);
+
+    // Find clusters (4+ same symbols connected horizontally or vertically)
+    let visited = Array.from({length:3},()=>Array(5).fill(false));
+    function dfs(r,c,symbol,cluster){
+        if(r<0||r>=3||c<0||c>=5||visited[r][c]||grid[r][c]!==symbol) return;
+        visited[r][c]=true;
+        cluster.push([r,c]);
+        dfs(r+1,c,symbol,cluster);
+        dfs(r-1,c,symbol,cluster);
+        dfs(r,c+1,symbol,cluster);
+        dfs(r,c-1,symbol,cluster);
+    }
+
+    let cellWins = {};
+    for(let r=0;r<3;r++){
+        for(let c=0;c<5;c++){
+            if(!visited[r][c] && !grid[r][c].includes('X')){
+                let cluster=[];
+                dfs(r,c,grid[r][c],cluster);
+                if(cluster.length>=4){
+                    clusters.push({cells:cluster});
+                    cluster.forEach(([rr,cc])=>{
+                        const val = grid[rr][cc]==='A'?bet*0.5:bet*0.1;
+                        cellWins[rr+'-'+cc]=val*multiplier;
+                    });
+                }
+            }
+        }
+    }
+
+    // Update grid with win highlights
+    clusters.forEach(cl=>{
+        cl.cells.forEach(([r,c])=>{
+            const div = gridDivs[r*5+c];
+            div.classList.add('win');
+            const span = document.createElement('span');
+            span.className='subwin';
+            span.innerText='€'+cellWins[r+'-'+c].toFixed(2);
+            div.appendChild(span);
+        });
+    });
+
+    // Update balance
+    let win=Object.values(cellWins).reduce((a,b)=>a+b,0);
+    balance+=win;
+    localStorage.setItem(balanceKey,balance);
+
+    document.getElementById('balance').innerText=balance.toFixed(2);
+    document.getElementById('info').innerText=`Bet: €${bet.toFixed(2)} | Win: €${win.toFixed(2)} | Multiplier: x${multiplier}`;
+}
+
+// Reset balance
+function resetBalance(){
+    balance=1000;
+    localStorage.setItem(balanceKey,balance);
+    document.getElementById('balance').innerText=balance.toFixed(2);
+    document.getElementById('info').innerText='Balance resetiran na €1000';
+    createGrid();
+}
+</script>
+
+</body>
+</html>
