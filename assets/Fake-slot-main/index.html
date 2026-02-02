@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>🎰 Neon Slot</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); 
+            color: #fff; 
+            text-align: center; 
+            margin: 0; 
+            padding: 50px 20px; 
+        }
+
+        h1 { 
+            font-size: 3em; 
+            margin-bottom: 20px; 
+            text-shadow: 0 0 10px #00d2ff; 
+        }
+
+        .grid { 
+            display: flex; 
+            justify-content: center; 
+            gap: 12px; 
+            margin: 20px auto; 
+        }
+
+        .column {
+            width: 86px;
+            height: 248px; 
+            overflow: hidden; 
+            border-radius: 15px;
+            padding: 4px;
+            box-sizing: border-box;
+            background: #111;
+            border: 1px solid #333;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .reel { 
+            display: flex; 
+            flex-direction: column;
+            will-change: transform;
+        }
+
+        .cell {
+            width: 76px;
+            height: 80px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            border: 2px solid #fff;
+            font-size: 28px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #222;
+            position: relative;
+            box-shadow: 0 0 5px #fff inset;
+            margin: 0 auto;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .cell img {
+            width: 90%;
+            height: 90%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .cell.x { 
+            background: gold; 
+            color: #000; 
+            box-shadow: 0 0 15px gold inset, 0 0 20px gold; 
+            z-index: 2; 
+            font-size: 24px;
+        }
+
+        .cell.win { 
+            background: #39ff14; 
+            color: #000; 
+            box-shadow: 0 0 15px #39ff14 inset, 0 0 30px #39ff14; 
+            z-index: 10;
+            animation: winPulse 0.5s ease infinite alternate;
+        }
+
+        @keyframes winPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.15); }
+        }
+
+        .subwin {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 11px;
+            color: #000;
+            font-weight: 800;
+            background: rgba(255,255,255,0.8);
+            padding: 1px 3px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        button, select { 
+            font-size: 16px; 
+            padding: 10px 20px; 
+            margin: 8px; 
+            border-radius: 6px; 
+            border: none; 
+            cursor: pointer; 
+            background: #ff6f61; 
+            color: #fff; 
+            font-weight: bold; 
+            transition: all 0.2s; 
+            box-shadow: 0 4px 0 #d64535; 
+        }
+
+        button:hover, select:hover { 
+            transform: translateY(-2px); 
+            background: #ff856f; 
+            box-shadow: 0 6px 0 #d64535; 
+        }
+
+        #info { 
+            margin-top: 15px; 
+            font-size: 20px; 
+            font-weight: bold; 
+            color: #ffe600; 
+            min-height: 1.2em; 
+            text-shadow: 0 0 5px #ff0; 
+        }
+
+        #winOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+        }
+
+        #winMult {
+            font-size: 100px;
+            color: #39ff14;
+            font-weight: 900;
+            text-shadow: 0 0 30px #39ff14;
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+        }
+
+        #winLabel { 
+            font-size: 24px; 
+            color: #ffd700; 
+            text-transform: uppercase; 
+            letter-spacing: 8px; 
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #winAmount {
+            font-size: 80px;
+            color: #fff;
+            font-weight: 900;
+            text-shadow: 0 0 20px gold, 0 0 40px red;
+        }
+
+        #autoSpinsSelect {
+            font-size: 16px;
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: none;
+            background: #ff6f61;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #autoStatus {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #autoStatus.visible {
+            opacity: 1;
+        }
+        
+        .spin-button {
+            position: relative;
+            width: 130px;               /* manjši kot prej */
+            height: 130px;
+            border: none;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff3366, #ff00aa, #cc00ff);
+            box-shadow: 
+                0 0 25px #ff00aa,
+                0 0 50px #cc00ff,
+                inset 0 0 15px rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            overflow: hidden;
+            margin: 30px auto;          /* manj prostora okoli */
+        }
+
+        .spin-button:hover {
+            transform: scale(1.08);
+            box-shadow: 
+                0 0 40px #ff00aa,
+                0 0 80px #cc00ff,
+                inset 0 0 25px rgba(255,255,255,0.5);
+        }
+
+        .spin-button:active {
+            transform: scale(0.94);
+        }
+
+        .inner-square {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 65px;                /* manjši kvadrat */
+            height: 65px;
+            background: rgba(0,0,0,0.7);
+            border: 3px solid #00ffff;
+            border-radius: 12px;
+            box-shadow: inset 0 0 15px #00ffff;
+            color: #00ffff;
+            font-size: 22px;            /* manjši tekst */
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 8px #00ffff;
+            transition: all 0.2s;
+        }
+
+        .spin-button:disabled .inner-square {
+            opacity: 0.5;
+            border-color: #666;
+            color: #888;
+            text-shadow: none;
+        }
+
+        /* Auto mode – prazen kvadrat */
+        .spin-button.auto-active .inner-square {
+            background: rgba(30,0,0,0.8);
+            border: 4px solid #ff4444;
+            box-shadow: inset 0 0 20px #ff4444;
+            color: transparent;
+        }
+
+        /* Če hočeš rahlo pulziranje med auto (opcijsko, lahko zbrišeš) */
+        .spin-button.auto-active {
+            animation: soft-pulse 3s infinite ease-in-out;
+        }
+
+        @keyframes soft-pulse {
+            0%, 100% { box-shadow: 0 0 25px #ff00aa, 0 0 50px #cc00ff; }
+            50%      { box-shadow: 0 0 35px #ff00aa, 0 0 70px #cc00ff; }
+        }
+    </style>
+</head>
+<body>
+    <audio id="bgMusic" src="cyber-music.mp3" loop></audio>
+    <audio id="soundSpin" src="https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3"></audio>
+    
+    
+    <audio id="soundSmallWin" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
+    <audio id="soundBigWin" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+    <audio id="soundMult" src="https://assets.mixkit.co/active_storage/sfx/1614/1614-preview.mp3"></audio>
+
+    <div id="winOverlay" onclick="closeOverlay()">
+        <div id="winMult"></div>
+        <div id="winLabel">BIG WIN!</div>
+        <div id="winAmount">€0.00</div>
+        <div style="margin-top:40px; font-size:14px; color:#666;">KLIKNI ZA NADALJEVANJE</div>
+    </div>
+
+    <h1>🎰 Neon Slot</h1>
+    <p><strong>Balance:</strong> €<span id="balance">1000.00</span></p>
+    
+    <label><strong>Bet:</strong> 
+        <select id="bet"></select>
+    </label>
+    <br>
+    
+    <label><strong>Auto spins:</strong> 
+        <select id="autoSpinsSelect">
+            <option value="0">OFF</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </label>
+    <br>
+    
+    
+    <button onclick="resetBalance()">RESET BALANCE</button>
+    <br>
+
+    <p id="autoStatus" style="font-size: 18px; font-weight: bold; color: #00d2ff; min-height: 1.5em; margin: 10px 0;">
+    Auto spins: <span id="remainingSpins">0</span> remaining
+    </p>
+
+    <div class="grid" id="grid"></div>
+    <p id="info"></p>
+    <div style="margin: 30px auto; text-align: center;">
+    <button id="spinBtn" class="spin-button" onclick="handleSpinClick()">
+        <div class="inner-square">SPIN</div>
+    </button>
+    </div>
+
+<!-- obstoječi STOP AUTO gumb lahko obdržiš zraven ali pod njim, če hočeš -->
+
+    <script>
+        //muzika
+        const bgMusic = document.getElementById("bgMusic");
+        let musicStarted = false;
+
+
+        //avtoSpins
+        let autoSpinsLeft = 0;
+        let autoMode = false;
+        const autoSpinsSelect = document.getElementById('autoSpinsSelect');
+        const autoStatus = document.getElementById('autoStatus');
+        const remainingSpins = document.getElementById('remainingSpins');
+        const spinBtn = document.getElementById('spinBtn');
+
+        const symbols = [
+            { name: 'cherry', src: 'https://i.postimg.cc/Ssp6hQgX/neon-cherry.png' },
+            { name: 'lemon',  src: 'https://i.postimg.cc/kg6KRRZ6/neon-lemon.jpg'  },
+            { name: 'bar',    src: 'https://i.postimg.cc/mgH1gfzT/neon-watermelon.jpg'},
+            { name: 'seven',  src: 'https://i.postimg.cc/nz734wPZ/neon-grapes.png'  }
+        ];
+
+        const balanceKey = 'slotBalance';
+        let balance = parseFloat(localStorage.getItem(balanceKey)) || 1000;
+        document.getElementById('balance').innerText = balance.toFixed(2);
+
+        function playSound(id) {
+            const s = document.getElementById(id);
+            if (s) { s.currentTime = 0; s.play().catch(e => {}); }
+        }
+
+        
+
+        const betSelect = document.getElementById('bet');
+        for (let b = 0.1; b <= 1; b += 0.1) {
+            let opt = document.createElement('option');
+            let val = Math.round(b * 100) / 100;
+            opt.value = val.toFixed(2);
+            opt.textContent = "€" + val.toFixed(2);
+            betSelect.appendChild(opt);
+        }
+
+
+        function createGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let c = 0; c < 5; c++) {
+                const col = document.createElement('div');
+                col.className = 'column';
+                const reel = document.createElement('div');
+                reel.className = 'reel';
+                for (let r = 0; r < 3; r++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    const sym = symbols[Math.floor(Math.random() * symbols.length)];
+                    const img = document.createElement('img');
+                    img.src = sym.src;
+                    img.alt = sym.name;
+                    cell.appendChild(img);
+                    
+                    reel.appendChild(cell);
+                }
+                col.appendChild(reel);
+                grid.appendChild(col);
+            }
+        }
+        createGrid();
+
+        let isSpinning = false;
+
+        function spin() {
+            if (!musicStarted) {
+                    bgMusic.volume = 0.25;
+                    bgMusic.play();
+                    musicStarted = true;
+                }
+            if (isSpinning) return;
+            spinBtn.disabled = false;
+            if (!autoMode && autoSpinsSelect.value !== "0") {
+                startAutoSpinIfSelected();
+            }
+            const bet = parseFloat(betSelect.value);
+            if (bet > balance) { alert("Ni dovolj denarja"); return; }
+
+            isSpinning = true;
+            balance -= bet;
+            document.getElementById('balance').innerText = balance.toFixed(2);
+            document.getElementById('info').innerText = 'Spinning...';
+            
+            playSound('soundSpin');
+
+            const columns = document.querySelectorAll('.column');
+            let finalGrid = Array.from({ length: 3 }, () => Array(5).fill(null));
+
+            columns.forEach((col, c) => {
+                const reel = document.createElement('div');
+                reel.className = 'reel';
+                col.innerHTML = '';
+                col.appendChild(reel);
+
+                let visibleSymbols = [];
+                for (let r = 0; r < 3; r++) {
+                    let isX = Math.random() < 0.02;
+                    let val;
+                    if (isX) {
+                        val = getXVal();
+                    } else {
+                        val = symbols[Math.floor(Math.random() * symbols.length)].name;
+                    }
+                    visibleSymbols.push(val);
+                    finalGrid[r][c] = val;
+                }
+
+                let fakeSymbols = [];
+                for (let i = 0; i < 30; i++) {
+                    fakeSymbols.push(symbols[Math.floor(Math.random() * symbols.length)].name);
+                }
+
+                const allSymbols = [...visibleSymbols, ...fakeSymbols];
+
+                allSymbols.forEach(sym => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    if (sym.includes('X')) {
+                        cell.innerText = sym;
+                        cell.classList.add('x');
+                    } else {
+                        const img = document.createElement('img');
+                        const symObj = symbols.find(s => s.name === sym);
+                        if (symObj) {
+                            img.src = symObj.src;
+                            img.alt = symObj.name;
+                        }
+                        cell.appendChild(img);
+                    }
+                    
+                    reel.appendChild(cell);
+                });
+
+                const cellHeight = 80;
+                const totalHeight = (allSymbols.length - 3) * cellHeight;
+
+                reel.style.transform = `translateY(-${totalHeight}px)`;
+                reel.offsetHeight; 
+
+                const delay = c * 200;
+                reel.style.transition = `transform 2s cubic-bezier(.15,.9,.25,1) ${delay}ms`;
+                reel.style.transform = `translateY(0)`;
+
+                setTimeout(() => {
+                    playReelStopSound();
+                }, 2000 + delay); 
+            });
+
+            setTimeout(() => {
+                showFinalCells();
+                calculateWin(finalGrid, bet);
+            }, 3000);
+        }
+
+        function getXVal() {
+            const roll = Math.random();
+            if (roll < 0.4) return '2X';
+            if (roll < 0.65) return '3X';
+            if (roll < 0.85) return '5X';
+            if (roll < 0.97) return '10X';
+            return '100X';
+        }
+
+        function showFinalCells() {
+            const columns = document.querySelectorAll('.column');
+            columns.forEach(col => {
+                const reel = col.querySelector('.reel');
+                const allCells = Array.from(reel.children);
+                const finalThree = allCells.slice(0, 3);
+                
+                reel.innerHTML = '';
+                finalThree.forEach(c => reel.appendChild(c));
+                reel.style.transition = 'none';
+                reel.style.transform = 'translateY(0)';
+            });
+        }
+
+        function calculateWin(grid, bet) {
+            let multiplier = 0;
+            let cellWins = {};
+            let clusters = [];
+
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (grid[r][c].includes('X')) {
+                        multiplier += parseInt(grid[r][c].replace('X', ''));
+                    }
+                }
+            }
+
+            let displayMultiplier = multiplier;
+            if (multiplier === 0) multiplier = 1;
+
+            let visited = Array.from({ length: 3 }, () => Array(5).fill(false));
+
+            function dfs(r, c, symbol, cluster) {
+                if (r < 0 || r >= 3 || c < 0 || c >= 5 || visited[r][c] || grid[r][c] !== symbol) return;
+                visited[r][c] = true;
+                cluster.push([r, c]);
+                dfs(r + 1, c, symbol, cluster);
+                dfs(r - 1, c, symbol, cluster);
+                dfs(r, c + 1, symbol, cluster);
+                dfs(r, c - 1, symbol, cluster);
+            }
+
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (!visited[r][c] && !grid[r][c].includes('X')) {
+                        let cluster = [];
+                        dfs(r, c, grid[r][c], cluster);
+                        if (cluster.length >= 4) {
+                            clusters.push({ cells: cluster });
+                            cluster.forEach(([rr, cc]) => {
+                                const base = grid[rr][cc] === 'seven' ? bet * 1.0 :   // primer – prilagodi vrednosti
+                                             grid[rr][cc] === 'bar'   ? bet * 0.6 :
+                                             grid[rr][cc] === 'cherry'? bet * 0.4 :
+                                             bet * 0.2;
+                                cellWins[rr + '-' + cc] = base;
+                            });
+                        }
+                    }
+                }
+            }
+
+            const columns = document.querySelectorAll('.column');
+            clusters.forEach(cl => {
+                cl.cells.forEach(([r, c]) => {
+                    const targetCell = columns[c].querySelector('.reel').children[r];
+                    if (targetCell) {
+                        targetCell.classList.add('win');
+                        const span = document.createElement('span');
+                        span.className = 'subwin';
+                        span.innerText = '€' + cellWins[r + '-' + c].toFixed(2);
+                        targetCell.appendChild(span);
+                    }
+                });
+            });
+
+            let baseWin = Object.values(cellWins).reduce((a, b) => a + b, 0);
+            let totalWin = baseWin * multiplier;
+
+            if (totalWin > 0) {
+                balance += totalWin;
+                localStorage.setItem(balanceKey, balance);
+                document.getElementById('balance').innerText = balance.toFixed(2);
+                document.getElementById('info').innerText = `WIN: €${totalWin.toFixed(2)} ${displayMultiplier > 1 ? '(x' + displayMultiplier + ')' : ''}`;
+                lastSpinWasWin = true;  // ← tu označimo, da je bil win
+
+                if (totalWin >= bet * 10) {
+                    setTimeout(() => { triggerBigWin(baseWin, displayMultiplier, totalWin); }, 800);
+                } else {
+                    playSound('soundSmallWin');
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+                    if (autoMode && autoSpinsLeft > 0) {
+                        autoSpinsLeft--;
+                        remainingSpins.innerText = autoSpinsLeft;
+                        if (autoSpinsLeft === 0) {
+                            autoMode = false;
+                            autoSpinsSelect.disabled = false;
+                            autoSpinsSelect.value = "0";
+                            document.getElementById('info').innerText += " (AUTO končano)";
+                        }else nextAutoSpin();
+                    }
+                }
+            } else {
+                document.getElementById('info').innerText = "";
+                lastSpinWasWin = false;  // ← ni bilo win
+
+                isSpinning = false;
+                spinBtn.disabled = false;  // ponovno omogoči
+
+                // Če je auto → spremeni stil gumba
+                if (autoMode) {
+                    spinBtn.classList.add('auto-active');
+                    spinBtn.querySelector('.inner-square').innerText = 'STOP';
+                } else {
+                    spinBtn.classList.remove('auto-active');
+                    spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+                }
+                if (autoMode) {
+                spinBtn.classList.add('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = '';   // ← PRAZEN tekst
+                } else {
+                    spinBtn.classList.remove('auto-active');
+                    spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+                }
+                if (autoMode && autoSpinsLeft > 0) {
+                autoSpinsLeft--;
+                remainingSpins.innerText = autoSpinsLeft;   
+                if (autoSpinsLeft === 0) {
+                    autoMode = false;
+                    autoSpinsSelect.disabled = false;
+                    autoSpinsSelect.value = "0";
+                    autoStatus.classList.remove('visible');
+                    spinBtn.classList.remove('auto-active');
+                    spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+                    document.getElementById('info').innerText += " (AUTO končano)";
+                } else {
+                    nextAutoSpin();
+                }
+
+            }else if (autoSpinsLeft <= 0) {
+                spinBtn.classList.remove('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+            }
+            }
+        }
+
+        function triggerBigWin(baseWin, multiplier, totalWin) {
+            playSound('soundBigWin');
+            const overlay = document.getElementById('winOverlay');
+            const amountEl = document.getElementById('winAmount');
+            const multEl = document.getElementById('winMult');
+
+            overlay.style.display = 'flex';
+            amountEl.innerText = "€" + baseWin.toFixed(2);
+            multEl.style.opacity = '0';
+            multEl.style.transform = 'scale(0.5)';
+            multEl.innerText = "";
+
+            if (totalWin > baseWin && multiplier > 1) {
+                setTimeout(() => {
+                    playSound('soundMult');
+                    multEl.innerText = multiplier + "X!";
+                    multEl.style.opacity = '1';
+                    multEl.style.transform = 'scale(1.2)';
+                    setTimeout(() => { animateValue(amountEl, baseWin, totalWin, 1000); }, 600);
+                }, 800);
+            } else {
+                amountEl.innerText = "€" + totalWin.toFixed(2);
+            }
+        }
+
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = "€" + (start + progress * (end - start)).toFixed(2);
+                if (progress < 1) window.requestAnimationFrame(step);
+                else obj.innerHTML = "€" + end.toFixed(2);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function closeOverlay() {
+            document.getElementById('winOverlay').style.display = 'none';
+            isSpinning = false;
+            spinBtn.disabled = false;
+            if (autoMode) {
+                spinBtn.classList.add('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = '';   // ← PRAZEN
+                nextAutoSpin();
+            }else {
+            spinBtn.classList.remove('auto-active');
+            spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+    }
+        }
+
+        function resetBalance() {
+            if (isSpinning) return;
+            balance = 1000;
+            localStorage.setItem(balanceKey, balance);
+            document.getElementById('balance').innerText = balance.toFixed(2);
+            createGrid();
+            document.getElementById('info').innerText = "";
+
+            // izklop auto spina
+            autoMode = false;
+            autoSpinsLeft = 0;
+            autoSpinsSelect.disabled = false;
+            autoSpinsSelect.value = "0";
+            autoStatus.classList.remove('visible');
+            stopAutoBtn.style.display = 'none';
+            lastSpinWasWin = false;
+        }
+
+        function startAutoSpinIfSelected() {
+            const selected = parseInt(autoSpinsSelect.value);
+            
+            if (selected > 0) {
+                autoSpinsLeft = selected;
+                autoMode = true;
+                autoSpinsSelect.disabled = true;  // da ne more spreminjati med vrtenjem
+
+                remainingSpins.innerText = autoSpinsLeft;
+                autoStatus.classList.add('visible');
+                nextAutoSpin();
+            } else {
+                autoMode = false;
+                autoSpinsLeft = 0;
+                autoStatus.classList.remove('visible');
+            }
+            stopAutoBtn.style.display = 'inline-block';
+        }
+
+        function nextAutoSpin() {
+    if (!autoMode || autoSpinsLeft <= 0 || isSpinning || balance < parseFloat(betSelect.value)) {
+        autoMode = false;
+        autoSpinsLeft = 0;
+        autoSpinsSelect.disabled = false;
+        autoSpinsSelect.value = "0";
+        autoStatus.classList.remove('visible');
+        spinBtn.classList.remove('auto-active');
+        spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+        return;
+    }
+
+    remainingSpins.innerText = autoSpinsLeft;
+
+    // Tukaj določimo delay glede na to, ali je bil win
+    // Uporabimo globalno spremenljivko ali session flag – najlažje naredimo novo spremenljivko
+    const delay = lastSpinWasWin ? 1500 : 500;
+
+    setTimeout(() => {
+        spin();
+    }, delay);
+}
+
+        function stopAuto() {
+            autoMode = false;
+            autoSpinsLeft = 0;
+            autoSpinsSelect.disabled = false;
+            autoSpinsSelect.value = "0";
+
+            spinBtn.classList.remove('auto-active');
+            spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+            spinBtn.disabled = false;
+            spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+            
+            // Skrij stop gumb
+            stopAutoBtn.style.display = 'none';
+            
+            // Skrij status
+            autoStatus.classList.remove('visible');
+            
+            document.getElementById('info').innerText = 'AUTO ustavljen';
+            lastSpinWasWin = false;
+        }
+        function handleSpinClick() {
+            if (autoMode) {
+                autoMode = false;
+                autoSpinsLeft = 0;
+                autoSpinsSelect.disabled = false;
+                autoSpinsSelect.value = "0";
+                
+                autoStatus.classList.remove('visible');
+                spinBtn.classList.remove('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+                
+                document.getElementById('info').innerText = 'AUTO ustavljen';          // če je auto → ustavi
+            } else {
+                // if (autoSpinsSelect.value !== "0") {
+                //     startAutoIfSelected();   // ← tu se zgodi takojšnji start + rdeča barva
+                // } else {
+                //     spin();  // normalen enojni spin
+                // }              // sicer normalen spin
+                spin();
+            }
+        }
+        function startAutoIfSelected() {
+            const selected = parseInt(autoSpinsSelect.value);
+            if (selected > 0) {
+                autoSpinsLeft = selected;
+                autoMode = true;
+                autoSpinsSelect.disabled = true;
+                
+                // TAKOJ pokaži rdeči prazen kvadrat
+                spinBtn.classList.add('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = '';  // prazen
+                
+                // TAKOJ pokaži status
+                remainingSpins.innerText = autoSpinsLeft;
+                autoStatus.classList.add('visible');
+                
+                // TAKOJ zaženi prvi spin
+                spin();
+            }
+        }
+        // TAKOJ ko spremeniš izbiro v dropdownu
+        autoSpinsSelect.addEventListener('change', function() {
+            const selected = parseInt(this.value);
+            
+            if (selected > 0) {
+                // Če že teče kakšen auto → najprej ustavi starega
+                if (autoMode) {
+                    autoMode = false;
+                    autoSpinsLeft = 0;
+                }
+                
+                autoSpinsLeft = selected;
+                autoMode = true;
+                autoSpinsSelect.disabled = true;  // da ne moreš medtem spreminjati
+                
+                // TAKOJ pokaži rdeči prazen kvadrat
+                spinBtn.classList.add('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = '';
+                
+                // TAKOJ pokaži status
+                remainingSpins.innerText = autoSpinsLeft;
+                autoStatus.classList.add('visible');
+                
+                // TAKOJ zaženi prvi spin
+                spin();
+            } else {
+                // Izbral OFF → ustavi vse
+                autoMode = false;
+                autoSpinsLeft = 0;
+                autoSpinsSelect.disabled = false;
+                
+                autoStatus.classList.remove('visible');
+                spinBtn.classList.remove('auto-active');
+                spinBtn.querySelector('.inner-square').innerText = 'SPIN';
+                
+                document.getElementById('info').innerText = 'AUTO izklopljen';
+            }
+        });
+    </script>
+</body>
+</html>
